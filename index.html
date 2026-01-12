@@ -36,16 +36,14 @@
         // --- FIREBASE CONFIGURATION ---
         let firebaseConfig;
         
-        // --- APP ID CONFIGURATION (CRITICAL FOR ISOLATION) ---
-        // distinct ID for Team Beau to prevent database overlap
+        // --- APP ID CONFIGURATION ---
         let appId = 'team-beau-tracker'; 
 
         if (typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
-            // Allow environment override if needed, otherwise stick to 'team-beau-tracker'
             if (typeof __app_id !== 'undefined') appId = __app_id;
         } else {
-            // Live Config for GitHub Hosting (Uses same DB, but different path due to appId)
+            // Live Config
             firebaseConfig = { 
                 apiKey: "AIzaSyBAeNRpRltRm0hrP5A0hFm6srEGOwaSJIg",
                 authDomain: "cardio-tracker-dec46.firebaseapp.com",
@@ -73,6 +71,9 @@
 
         const PlusIcon = () => <Icon path={<><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></>} />;
         const TrashIcon = () => <Icon path={<><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></>} />;
+        const EditIcon = () => <Icon path={<><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></>} />;
+        const SaveIcon = () => <Icon path={<><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></>} />;
+        const XIcon = () => <Icon path={<><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></>} />;
         const TrophyIcon = ({className}) => <Icon className={className} size={32} path={<><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10"></path><path d="M17 4v7a5 5 0 0 1-10 0V4"></path><line x1="10" y1="2" x2="10" y2="4"></line><line x1="14" y1="2" x2="14" y2="4"></line><path d="M5 9h2"></path><path d="M17 9h2"></path></>} />;
         const PhoneIcon = () => <Icon size={16} path={<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>} />;
         const ClockIcon = () => <Icon size={16} path={<><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></>} />;
@@ -149,12 +150,28 @@
         };
 
         // --- Admin Components ---
-        const RosterManager = ({ roster, onAdd, onDelete }) => {
+        const RosterManager = ({ roster, onAdd, onEdit, onDelete }) => {
             const [newName, setNewName] = useState("");
+            const [editingId, setEditingId] = useState(null);
+            const [editNameValue, setEditNameValue] = useState("");
+
             const handleAdd = (e) => {
                 e.preventDefault();
                 if(newName.trim()) { onAdd(newName.trim()); setNewName(""); }
             };
+
+            const startEdit = (r) => {
+                setEditingId(r.id);
+                setEditNameValue(r.name);
+            };
+
+            const saveEdit = (id) => {
+                if(editNameValue.trim()) {
+                    onEdit(id, editNameValue.trim());
+                    setEditingId(null);
+                }
+            };
+
             return (
                 <div className="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 h-full">
                     <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><UserPlusIcon /> Manage Team Roster</h3>
@@ -166,8 +183,27 @@
                         {roster.length === 0 && <p className="text-slate-500 text-sm text-center italic">No team members yet.</p>}
                         {roster.map(r => (
                             <div key={r.id} className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 group">
-                                <span className="font-medium text-slate-200">{r.name}</span>
-                                <button onClick={() => onDelete(r.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all p-1" title="Remove"><TrashIcon size={16} /></button>
+                                {editingId === r.id ? (
+                                    <div className="flex gap-2 w-full">
+                                        <input 
+                                            type="text" 
+                                            value={editNameValue} 
+                                            onChange={(e) => setEditNameValue(e.target.value)} 
+                                            className="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none" 
+                                            autoFocus
+                                        />
+                                        <button onClick={() => saveEdit(r.id)} className="text-emerald-400 hover:text-emerald-300"><SaveIcon size={16}/></button>
+                                        <button onClick={() => setEditingId(null)} className="text-slate-500 hover:text-slate-300"><XIcon size={16}/></button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <span className="font-medium text-slate-200">{r.name}</span>
+                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                            <button onClick={() => startEdit(r)} className="text-slate-400 hover:text-blue-400 p-1" title="Edit Name"><EditIcon size={16} /></button>
+                                            <button onClick={() => onDelete(r.id)} className="text-slate-600 hover:text-red-400 p-1" title="Remove"><TrashIcon size={16} /></button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -175,7 +211,7 @@
             );
         };
 
-        const AdminDashboard = ({ allWeeks, roster, onAddRecruiter, onDeleteRecruiter }) => {
+        const AdminDashboard = ({ allWeeks, roster, onAddRecruiter, onEditRecruiter, onDeleteRecruiter, onUpdateStat }) => {
             const [subTab, setSubTab] = useState('overview'); 
             const [selectedRecruiter, setSelectedRecruiter] = useState('');
             const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'asc' });
@@ -188,7 +224,7 @@
                         Object.keys(week.stats).forEach(rId => {
                             const rosterMember = roster.find(m => m.id === rId);
                             const rData = week.stats[rId];
-                            weekRecruiters.push({ ...rData, name: rosterMember ? rosterMember.name : "Unknown", weekId: week.id, createdAt: week.createdAt });
+                            weekRecruiters.push({ ...rData, id: rId, name: rosterMember ? rosterMember.name : "Unknown", weekId: week.id, createdAt: week.createdAt });
                         });
                     } else if (week.roster) {
                         week.roster.forEach(r => weekRecruiters.push({ ...r, weekId: week.id, createdAt: week.createdAt }));
@@ -334,7 +370,7 @@
                                     <StatCard label="Avg POP" value={recruiterStats.avgPop} />
                                     <StatCard label="Avg Uniques" value={recruiterStats.avgUniques} />
                                     <StatCard label="Avg Pkts" value={recruiterStats.avgPackets} />
-                                    <StatCard label="Avg Intv" value={recruiterStats.avgInterviews} />
+                                    <StatCard label="Avg Qual" value={recruiterStats.avgInterviews} />
                                     <StatCard label="Avg Refs" value={recruiterStats.avgReferrals} />
                                 </div>
                             </div>
@@ -350,28 +386,51 @@
                                         <SortHeader label="Talk (m)" sKey="talkMins" />
                                         <SortHeader label="POP" sKey="pop" />
                                         <SortHeader label="Uniq" sKey="uniques" />
-                                        <SortHeader label="Intv" sKey="interviews" />
+                                        <SortHeader label="Qual" sKey="interviews" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700 text-sm">
-                                    {sortedRows.map((r, i) => (
-                                        <tr key={i} className="hover:bg-slate-700/50">
-                                            <td className="p-4 font-bold text-white">{subTab==='overview'?r.name:formatWeekEnding(r.weekId)}</td>
-                                            <td className="p-4 text-emerald-400 font-bold">{r.score}</td>
-                                            <td className="p-4 text-slate-300">{r.dials}</td>
-                                            <td className="p-4 text-orange-300">{r.talkMins}</td>
-                                            <td className="p-4 text-slate-400">{r.pop}</td>
-                                            <td className="p-4 text-slate-400">{r.uniques}</td>
-                                            <td className="p-4 text-slate-400">{r.interviews}</td>
-                                        </tr>
-                                    ))}
+                                    {sortedRows.map((r, i) => {
+                                        // History Mode: Editable Rows
+                                        if (subTab === 'history') {
+                                            return (
+                                                <tr key={i} className="hover:bg-slate-700/50">
+                                                    <td className="p-4 font-bold text-white">{formatWeekEnding(r.weekId)}</td>
+                                                    <td className="p-4 text-emerald-400 font-bold">{r.score}</td>
+                                                    <td className="p-2"><NumberInput value={r.dials||''} onChange={(v)=>onUpdateStat(r.weekId, r.id, 'dials', v)} color="focus:border-blue-500" /></td>
+                                                    <td className="p-2">
+                                                        <div className="flex items-center gap-1">
+                                                            <NumberInput value={r.talkHours||''} onChange={(v)=>onUpdateStat(r.weekId, r.id, 'talkHours', v)} className="w-12" color="focus:border-orange-500" />
+                                                            :
+                                                            <NumberInput value={r.talkMinutes||''} onChange={(v)=>onUpdateStat(r.weekId, r.id, 'talkMinutes', v)} className="w-12" color="focus:border-orange-500" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-2"><NumberInput value={r.pop||''} onChange={(v)=>onUpdateStat(r.weekId, r.id, 'pop', v)} color="focus:border-emerald-500" /></td>
+                                                    <td className="p-2"><NumberInput value={r.uniques||''} onChange={(v)=>onUpdateStat(r.weekId, r.id, 'uniques', v)} color="focus:border-blue-500" /></td>
+                                                    <td className="p-2"><NumberInput value={r.interviews||''} onChange={(v)=>onUpdateStat(r.weekId, r.id, 'interviews', v)} color="focus:border-indigo-500" /></td>
+                                                </tr>
+                                            );
+                                        }
+                                        // Overview Mode: Read-Only Rows
+                                        return (
+                                            <tr key={i} className="hover:bg-slate-700/50">
+                                                <td className="p-4 font-bold text-white">{r.name}</td>
+                                                <td className="p-4 text-emerald-400 font-bold">{r.score}</td>
+                                                <td className="p-4 text-slate-300">{r.dials}</td>
+                                                <td className="p-4 text-orange-300">{r.talkMins}</td>
+                                                <td className="p-4 text-slate-400">{r.pop}</td>
+                                                <td className="p-4 text-slate-400">{r.uniques}</td>
+                                                <td className="p-4 text-slate-400">{r.interviews}</td>
+                                            </tr>
+                                        );
+                                    })}
                                     {sortedRows.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-slate-500">No data found.</td></tr>}
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     <div className="w-full lg:w-80 flex-shrink-0">
-                        <RosterManager roster={roster} onAdd={onAddRecruiter} onDelete={onDeleteRecruiter} />
+                        <RosterManager roster={roster} onAdd={onAddRecruiter} onEdit={onEditRecruiter} onDelete={onDeleteRecruiter} />
                     </div>
                 </div>
             );
@@ -458,16 +517,14 @@
                 return () => unsub();
             }, [user]);
 
-            const handleStatChange = async (recruiterId, field, value) => {
-                if (selectedWeekId !== currentWeekId) return; 
+            const updateWeekStat = async (targetWeekId, recruiterId, field, value) => {
                 setIsSaving(true);
                 const cleanVal = value === '' ? 0 : parseInt(value);
-                const weekDocRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('weeks').doc(currentWeekId);
+                const weekDocRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('weeks').doc(targetWeekId);
                 
                 try {
-                    // Update: CORRECT WAY -> Use Set with deep merge to ensure nesting exists
                     await weekDocRef.set({
-                        id: currentWeekId,
+                        id: targetWeekId,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         stats: {
                             [recruiterId]: {
@@ -482,8 +539,17 @@
                 }
             };
 
+            const handleLiveStatChange = (recruiterId, field, value) => {
+                if (selectedWeekId !== currentWeekId) return; 
+                updateWeekStat(currentWeekId, recruiterId, field, value);
+            };
+
             const addRosterMember = async (name) => {
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('roster').add({ name });
+            };
+
+            const editRosterMember = async (id, newName) => {
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('roster').doc(id).update({ name: newName });
             };
 
             const removeRosterMember = async (id) => {
@@ -532,7 +598,7 @@
                         </div>
 
                         {activeTab === 'dashboard' ? (
-                            <AdminDashboard allWeeks={allWeeks} roster={roster} onAddRecruiter={addRosterMember} onDeleteRecruiter={removeRosterMember} />
+                            <AdminDashboard allWeeks={allWeeks} roster={roster} onAddRecruiter={addRosterMember} onEditRecruiter={editRosterMember} onDeleteRecruiter={removeRosterMember} onUpdateStat={updateWeekStat} />
                         ) : (
                             <div className="space-y-6 fade-in">
                                 <div className={`flex justify-between items-center p-6 rounded-2xl shadow-lg border ${isHistory ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-800 border-slate-700'}`}>
@@ -550,7 +616,7 @@
                                     <LegendItem label="POP (Rev)" value={POINTS.POP} color="text-emerald-400" />
                                     <LegendItem label="Unique Sub" value={POINTS.UNIQUE} color="text-blue-400" />
                                     <LegendItem label="Packet" value={POINTS.PACKET} color="text-purple-400" />
-                                    <LegendItem label="Interview" value={POINTS.INTERVIEW} color="text-indigo-400" />
+                                    <LegendItem label="Qual" value={POINTS.INTERVIEW} color="text-indigo-400" />
                                     <LegendItem label="Talk Time" value={POINTS.TALK_MINUTE} unit="/ min" color="text-orange-400" />
                                     <LegendItem label="Dials" value={POINTS.DIAL} unit="/ dial" color="text-slate-300" />
                                     <LegendItem label="Referral" value={POINTS.REFERRAL} color="text-yellow-400" />
@@ -568,7 +634,7 @@
                                                     <th className="p-4 text-center w-24 bg-emerald-900/10"><div className="flex flex-col items-center gap-1 text-emerald-400"><BriefcaseIcon/><span>POP</span></div></th>
                                                     <th className="p-4 text-center w-24 bg-blue-900/10"><div className="flex flex-col items-center gap-1 text-blue-400"><UsersIcon/><span>Uniques</span></div></th>
                                                     <th className="p-4 text-center w-24"><div className="flex flex-col items-center gap-1"><FileCheckIcon/><span>Packet</span></div></th>
-                                                    <th className="p-4 text-center w-24"><div className="flex flex-col items-center gap-1"><FileTextIcon/><span>Intvw</span></div></th>
+                                                    <th className="p-4 text-center w-24"><div className="flex flex-col items-center gap-1"><FileTextIcon/><span>Qual</span></div></th>
                                                     <th className="p-4 text-center w-24"><div className="flex flex-col items-center gap-1 text-yellow-500"><StarIcon/><span>Referral</span></div></th>
                                                     <th className="p-4 text-right w-32 sticky right-0 bg-slate-900/95 z-10">Score</th>
                                                 </tr>
@@ -583,19 +649,19 @@
                                                             <td className="p-3 sticky left-0 bg-slate-800 z-10 border-r border-slate-700/50 font-medium text-slate-200">
                                                                 {r.name}
                                                             </td>
-                                                            <td className="p-3"><NumberInput value={r.dials||''} onChange={(v)=>handleStatChange(r.id, 'dials', v)} disabled={isHistory} color="focus:border-blue-500" /></td>
+                                                            <td className="p-3"><NumberInput value={r.dials||''} onChange={(v)=>handleLiveStatChange(r.id, 'dials', v)} disabled={isHistory} color="focus:border-blue-500" /></td>
                                                             <td className="p-3">
                                                                 <div className="flex items-center gap-1">
-                                                                    <NumberInput value={r.talkHours||''} onChange={(e)=>handleStatChange(r.id, 'talkHours', e)} disabled={isHistory} className="w-14" color="focus:border-orange-500" />
+                                                                    <NumberInput value={r.talkHours||''} onChange={(e)=>handleLiveStatChange(r.id, 'talkHours', e)} disabled={isHistory} className="w-14" color="focus:border-orange-500" />
                                                                     <span className="text-slate-500">:</span>
-                                                                    <NumberInput value={r.talkMinutes||''} onChange={(e)=>handleStatChange(r.id, 'talkMinutes', e)} disabled={isHistory} className="w-14" color="focus:border-orange-500" />
+                                                                    <NumberInput value={r.talkMinutes||''} onChange={(e)=>handleLiveStatChange(r.id, 'talkMinutes', e)} disabled={isHistory} className="w-14" color="focus:border-orange-500" />
                                                                 </div>
                                                             </td>
-                                                            <td className="p-3 bg-emerald-900/5"><NumberInput value={r.pop||''} onChange={(v)=>handleStatChange(r.id, 'pop', v)} disabled={isHistory} color="focus:border-emerald-500 border-emerald-700/50 text-emerald-200 font-bold" /></td>
-                                                            <td className="p-3 bg-blue-900/5"><NumberInput value={r.uniques||''} onChange={(v)=>handleStatChange(r.id, 'uniques', v)} disabled={isHistory} color="focus:border-blue-500 border-blue-700/50 text-blue-200 font-bold" /></td>
-                                                            <td className="p-3"><NumberInput value={r.packets||''} onChange={(v)=>handleStatChange(r.id, 'packets', v)} disabled={isHistory} color="focus:border-purple-500" /></td>
-                                                            <td className="p-3"><NumberInput value={r.interviews||''} onChange={(v)=>handleStatChange(r.id, 'interviews', v)} disabled={isHistory} color="focus:border-indigo-500" /></td>
-                                                            <td className="p-3"><NumberInput value={r.referrals||''} onChange={(v)=>handleStatChange(r.id, 'referrals', v)} disabled={isHistory} color="focus:border-yellow-500" /></td>
+                                                            <td className="p-3 bg-emerald-900/5"><NumberInput value={r.pop||''} onChange={(v)=>handleLiveStatChange(r.id, 'pop', v)} disabled={isHistory} color="focus:border-emerald-500 border-emerald-700/50 text-emerald-200 font-bold" /></td>
+                                                            <td className="p-3 bg-blue-900/5"><NumberInput value={r.uniques||''} onChange={(v)=>handleLiveStatChange(r.id, 'uniques', v)} disabled={isHistory} color="focus:border-blue-500 border-blue-700/50 text-blue-200 font-bold" /></td>
+                                                            <td className="p-3"><NumberInput value={r.packets||''} onChange={(v)=>handleLiveStatChange(r.id, 'packets', v)} disabled={isHistory} color="focus:border-purple-500" /></td>
+                                                            <td className="p-3"><NumberInput value={r.interviews||''} onChange={(v)=>handleLiveStatChange(r.id, 'interviews', v)} disabled={isHistory} color="focus:border-indigo-500" /></td>
+                                                            <td className="p-3"><NumberInput value={r.referrals||''} onChange={(v)=>handleLiveStatChange(r.id, 'referrals', v)} disabled={isHistory} color="focus:border-yellow-500" /></td>
                                                             <td className={`p-3 text-right text-xl font-black sticky right-0 bg-slate-800 z-10 border-l border-slate-700/50 ${scoreColor}`}>
                                                                 {score.toLocaleString()}
                                                             </td>
